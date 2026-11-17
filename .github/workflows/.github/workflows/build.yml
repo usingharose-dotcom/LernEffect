@@ -1,0 +1,41 @@
+
+name: Build Lern Effect VST3
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Get source code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Configure
+        run: cmake -S . -B build-ci -A x64
+
+      - name: Compile VST3
+        run: cmake --build build-ci --config Release --parallel
+
+      - name: Find and package plugin
+        shell: pwsh
+        run: |
+          $plugin = Get-ChildItem build-ci -Filter "LernEffect.vst3" -Directory -Recurse | Select-Object -First 1
+          if (-not $plugin) {
+            throw "LernEffect.vst3 was not found after building."
+          }
+          Compress-Archive -Path $plugin.FullName -DestinationPath "$env:GITHUB_WORKSPACE/LernEffect-VST3.zip"
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: LernEffect-VST3
+          path: LernEffect-VST3.zip
